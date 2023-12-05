@@ -48,28 +48,20 @@ class Interpreter {
     // Allocate tensors when interpreter is created
     allocateTensors();
   }
-  
-  // Constructor to initialize interpreter with Select TensorFlow ops
-  Interpreter.createWithSelectTfOps(this._modelPath, {InterpreterOptions? options}) {
-    // Convert Dart string to C string
-    final cModelPath = _modelPath.toNativeUtf8();
-    final cOptions = options != null ? options._optionsPtr : nullptr;
-
-    // Create interpreter with Select TensorFlow ops
-    _interpreter = tfliteBinding.TfLiteInterpreterCreateWithSelectedOps(cModelPath, cOptions);
-
-    // Allocate tensors
-    allocateTensors();
-
-    // Free the native string memory
-    calloc.free(cModelPath);
-  }
 
   /// Creates interpreter from model
   ///
   /// Throws [ArgumentError] is unsuccessful.
   factory Interpreter._create(Model model, {InterpreterOptions? options}) {
     final interpreter = tfliteBinding.TfLiteInterpreterCreate(
+        model.base, options?.base ?? cast<TfLiteInterpreterOptions>(nullptr));
+    checkArgument(isNotNull(interpreter),
+        message: 'Unable to create interpreter.');
+    return Interpreter._(interpreter);
+  }
+
+  factory Interpreter._createWithOps(Model model, {InterpreterOptions? options}) {
+    final interpreter = tfliteBinding.TfLiteInterpreterCreateWithSelectedOps(
         model.base, options?.base ?? cast<TfLiteInterpreterOptions>(nullptr));
     checkArgument(isNotNull(interpreter),
         message: 'Unable to create interpreter.');
@@ -127,6 +119,14 @@ class Interpreter {
     return interpreter;
   }
 
+  factory Interpreter.fromBufferWithOps(Uint8List buffer,
+      {InterpreterOptions? options}) {
+    final model = Model.fromBuffer(buffer);
+    final interpreter = Interpreter._createWithOps(model, options: options);
+    model.delete();
+    return interpreter;
+  }
+
   /// Creates interpreter from a [assetName]
   ///
   /// Place your `.tflite` file in your assets folder.
@@ -140,6 +140,21 @@ class Interpreter {
       {InterpreterOptions? options}) async {
     Uint8List buffer = await _getBuffer(assetName);
     return Interpreter.fromBuffer(buffer, options: options);
+  }
+
+  /// Creates interpreter that can make use of ops from a [assetName]
+  ///
+  /// Place your `.tflite` file in your assets folder.
+  ///
+  /// Example:
+  ///
+  /// ```dart
+  /// final interpreter = await tfl.Interpreter.fromAsset('assets/your_model.tflite');
+  /// ``'
+  static Future<Interpreter> fromAssetWithOps(String assetName,
+      {InterpreterOptions? options}) async {
+    Uint8List buffer = await _getBuffer(assetName);
+    return Interpreter.fromBufferWithOps(buffer, options: options);
   }
 
   /// Get byte buffer
@@ -354,4 +369,8 @@ class Interpreter {
   bool get isDeleted => _deleted;
 
   //TODO: (JAVA) void modifyGraphWithDelegate(Delegate delegate)
+
+
+
+
 }
