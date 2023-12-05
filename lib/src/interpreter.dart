@@ -48,6 +48,22 @@ class Interpreter {
     // Allocate tensors when interpreter is created
     allocateTensors();
   }
+  
+  // Constructor to initialize interpreter with Select TensorFlow ops
+  Interpreter.createWithSelectTfOps(this._modelPath, {InterpreterOptions? options}) {
+    // Convert Dart string to C string
+    final cModelPath = _modelPath.toNativeUtf8();
+    final cOptions = options != null ? options._optionsPtr : nullptr;
+
+    // Create interpreter with Select TensorFlow ops
+    _interpreter = tfliteBinding.TfLiteInterpreterCreateWithSelectedOps(cModelPath, cOptions);
+
+    // Allocate tensors
+    allocateTensors();
+
+    // Free the native string memory
+    calloc.free(cModelPath);
+  }
 
   /// Creates interpreter from model
   ///
